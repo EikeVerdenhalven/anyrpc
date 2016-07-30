@@ -11,12 +11,13 @@ include_directories(${GTEST_INCLUDE_DIR})
 
 # The set of source files for the test application, without the .cpp
 set(ANYRPC_CPP_TESTS
-    testMain.cpp 
+    testMain.cpp
     testValue.cpp
     testStream.cpp
     testMethodMap.cpp
     testHttpHeader.cpp
     testServer.cpp
+    testVariant.cpp
 )
 
 if (BUILD_PROTOCOL_JSON)
@@ -30,7 +31,7 @@ endif ()
 if (BUILD_PROTOCOL_MESSAGEPACK)
     set(ANYRPC_CPP_TESTS ${ANYRPC_CPP_TESTS} testMessagePack.cpp)
 endif ()
-    
+
 # Add the necessary external library references
 if (BUILD_WITH_LOG4CPLUS)
     include_directories(${LOG4CPLUS_INCLUDE_DIRS})
