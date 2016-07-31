@@ -154,18 +154,37 @@ TEST(variant, ConstructFromMap)
 
 TEST(variant, MoveMap)
 {
-    const v::value::map_type expect_map = {{ {"entry 1", v::value("string value")} , {"entry 2 ", v::value(1245.663)}}};
+    const v::value::map_type expect_map = {{{"entry 1", v::value("string value")}, {"entry 2 ", v::value(1245.663)}}};
     auto testmap = expect_map;
-    
+
     ASSERT_FALSE(testmap.empty());
     v::value origin{testmap};
+
+    const v::value dest{std::move(origin)};
+
+    EXPECT_FALSE(origin.is_valid());
+    EXPECT_TRUE(dest.is_valid());
+
+    v::value::map_type actual;
+    testhelper::verify_map(dest, actual);
+    EXPECT_TRUE(actual == expect_map);
+}
+
+TEST(variant, MoveArray)
+{
+    const v::value::array_type expect_array = {{v::value("entry 1"), v::value("string value"), v::value("entry 2 "), v::value(1245.663)}};
+    auto testarray = expect_array;
+    
+    ASSERT_FALSE(testarray.empty());
+    v::value origin{testarray};
     
     const v::value dest{std::move(origin)};
     
     EXPECT_FALSE(origin.is_valid());
     EXPECT_TRUE(dest.is_valid());
     
-    v::value::map_type actual;
-    testhelper::verify_map(dest, actual);
-    EXPECT_TRUE( actual == expect_map );
+    v::value::array_type actual;
+    testhelper::verify_array(dest, actual);
+    EXPECT_TRUE(actual == expect_array);
 }
+
