@@ -10,6 +10,12 @@ void destruct(T& x)
     (&x)->~T();
 }
 
+template <class T, class... Args>
+void construct_at(T* ptr, Args&&... args)
+{
+    new (ptr) typename std::decay<T>::type(std::forward<Args>(args)...);
+}
+
 template <class T>
 void copy_construct_at(typename std::decay<T>::type* ptr, const T& x)
 {
@@ -19,47 +25,36 @@ void copy_construct_at(typename std::decay<T>::type* ptr, const T& x)
 template <class T>
 void move_construct_at(typename std::decay<T>::type* ptr, T&& x)
 {
-    new (ptr) typename std::decay<T>::type(x);
+    new (ptr) typename std::decay<T>::type(std::forward<T>(x));
 }
 
-template <template <v2::value::TypeFlag> class Functor, class V, class... Args>
-void do_invoke_flagged(V&& self, const v2::value::TypeFlag flag, Args&&... args)
+template <template <v2::value::TypeFlag> class Functor, class... Args>
+void invoke_flagged(const v2::value::TypeFlag flag, Args&&... args)
 {
     using v = v2::value;
     switch (flag)
     {
     case v::Bool:
-        Functor<v::Bool>{self}(std::forward<Args>(args)...);
+        Functor<v::Bool>::invoke(std::forward<Args>(args)...);
         break;
     case v::Int:
-        Functor<v::Int>{self}(std::forward<Args>(args)...);
+        Functor<v::Int>::invoke(std::forward<Args>(args)...);
         break;
     case v::Float:
-        Functor<v::Float>{self}(std::forward<Args>(args)...);
+        Functor<v::Float>::invoke(std::forward<Args>(args)...);
         break;
     case v::String:
-        Functor<v::String>{self}(std::forward<Args>(args)...);
+        Functor<v::String>::invoke(std::forward<Args>(args)...);
         break;
     case v::Array:
-        Functor<v::Array>{self}(std::forward<Args>(args)...);
+        Functor<v::Array>::invoke(std::forward<Args>(args)...);
         break;
     case v::Map:
-        Functor<v::Map>{self}(std::forward<Args>(args)...);
+        Functor<v::Map>::invoke(std::forward<Args>(args)...);
         break;
     default:
         break;
     }
-}
-
-template <template <v2::value::TypeFlag> class Functor, class... Args>
-void invoke_flagged(const v2::value& self, const v2::value::TypeFlag flag, Args&&... args)
-{
-    do_invoke_flagged<Functor, const v2::value&, Args...>(self, flag, std::forward<Args>(args)...);
-}
-template <template <v2::value::TypeFlag> class Functor, class... Args>
-void invoke_flagged(v2::value& self, const v2::value::TypeFlag flag, Args&&... args)
-{
-    do_invoke_flagged<Functor, v2::value&, Args...>(self, flag, std::forward<Args>(args)...);
 }
 
 
@@ -69,103 +64,118 @@ namespace v2
 {
 
 template <value::TypeFlag Flag>
-struct value::copy_construction : public flag_functor
+struct value::copy_construction
 {
-    using flag_functor::flag_functor;
-    void operator()(const value& rhs) const
+    static void invoke(value& self, const value& rhs)
     {
-        using flag_type = typename flag_traits<Flag>::value_type;
-        copy_construct_at(m_this.m_data.as<flag_type>(), rhs.get<flag_type>());
+        copy_construct_at(self.m_data.as<flag_t<Flag>>(), rhs.get<flag_t<Flag>>());
     }
 };
 
 template <value::TypeFlag Flag>
-struct value::move_construction : public flag_functor
+struct value::move_construction
 {
-    using flag_functor::flag_functor;
-    void operator()(value&& rhs) const
+    static void invoke(value& self, value&& rhs)
     {
-        using flag_type = typename flag_traits<Flag>::value_type;
-        move_construct_at(m_this.m_data.as<flag_type>(), std::move(*rhs.m_data.as<flag_type>()));
+        move_construct_at(self.m_data.as<flag_t<Flag>>(), std::move(*rhs.m_data.as<flag_t<Flag>>()));
         rhs.m_type = Invalid;
     }
 };
 
 template <value::TypeFlag Flag>
-struct value::move_assign : public flag_functor
+struct value::copy_assign_outer
 {
-    using flag_functor::flag_functor;
-    void operator()(value&& rhs) const
+    static void invoke(value& self, const value& rhs)
     {
-        using flag_type = typename flag_traits<Flag>::value_type;
-        *m_this.m_data.as<flag_type>() = std::move(*rhs.m_data.as<flag_type>());
+        self.copy_assign_inner(rhs.get<flag_t<Flag>>());
     }
 };
+
 template <value::TypeFlag Flag>
-struct value::destruction : public flag_functor
+struct value::move_assign_outer
 {
-    using flag_functor::flag_functor;
-    void operator()() const
+    static void invoke(value& self, value&& rhs)
     {
-        destruct(*m_this.m_data.as<typename flag_traits<Flag>::value_type>());
+        self.move_assign_inner(std::move(*rhs.m_data.as<flag_t<Flag>>()));
+        rhs.m_type = Invalid;
+    }
+};
+
+
+template <value::TypeFlag Flag>
+struct value::destruction
+{
+    static void invoke(value& self)
+    {
+        destruct(*self.m_data.as<flag_t<Flag>>());
+        self.m_type = Invalid;
     }
 };
 
 template <value::TypeFlag Flag>
 struct value::equality
 {
-    equality(const value& this_ref) : m_this(this_ref)
+    static void invoke(const value& self, const value& rhs, bool& res)
     {
+        res = self.get<flag_t<Flag>>() == rhs.get<flag_t<Flag>>();
     }
-    void operator()(const value& rhs, bool& result) const
-    {
-        using flag_type = typename flag_traits<Flag>::value_type;
-        result = (m_this.get<flag_type>() == rhs.get<flag_type>());
-    }
-    const value& m_this;
 };
+
+template <typename T>
+void value::copy_assign_inner(const T& x)
+{
+    using rhs_type = typename std::decay<T>::type;
+    const auto new_flag = type_traits<rhs_type>::type_flag;
+    if (m_type == new_flag)
+    {
+        *m_data.as<rhs_type>() = x;
+    }
+    else
+    {
+        destruct(*this);
+        construct_at(this, x);
+    }
+}
+
+template <typename T>
+void value::move_assign_inner(T&& x)
+{
+    using rhs_type = typename std::decay<T>::type;
+    const auto new_flag = type_traits<rhs_type>::type_flag;
+    if (m_type == new_flag)
+    {
+        *m_data.as<rhs_type>() = std::move(x);
+    }
+    else
+    {
+        destruct(*this);
+        construct_at(this, std::move(x));
+    }
+}
 
 
 value::value(const value& rhs) : m_type(rhs.m_type)
 {
-    if(m_type != Invalid)
-    {
-        invoke_flagged<copy_construction>(*this, m_type, rhs);
-    }
+    invoke_flagged<copy_construction>(m_type, *this, rhs);
 }
 
 value::value(value&& rhs) : m_type(rhs.m_type)
 {
-    if(m_type != Invalid)
-    {
-        invoke_flagged<move_construction>(*this, m_type, std::move(rhs));
-    }
+    invoke_flagged<move_construction>(m_type, *this, std::move(rhs));
 }
 
 value& value::operator=(const value& rhs)
 {
-    this->~value();
-    new (this) value(rhs);
+    invoke_flagged<copy_assign_outer>(rhs.m_type, *this, rhs);
     return *this;
 }
 
 value& value::operator=(value&& rhs)
 {
-    if (m_type == rhs.m_type)
-    {
-        if(m_type != Invalid)
-        {
-            invoke_flagged<move_assign>(*this, m_type, std::move(rhs));
-        }
-    }
-    else
-    {
-        this->~value();
-        new (this) value(rhs);
-    }
+    invoke_flagged<move_assign_outer>(rhs.m_type, *this, std::move(rhs));
     return *this;
 }
-    
+
 value::value(const bool x) : m_type(Bool)
 {
     copy_construct_at(m_data.as<bool>(), x);
@@ -181,29 +191,64 @@ value::value(const double x) : m_type(Float)
     copy_construct_at(m_data.as<double>(), x);
 }
 
-value::value(const std::string& s) : m_type(String)
+value::value(std::string s) : m_type(String)
 {
-    copy_construct_at(m_data.as<std::string>(), s);
+    move_construct_at(m_data.as<std::string>(), s);
 }
 
-value::value(const array_type& s) : m_type(Array)
+value::value(array_type s) : m_type(Array)
 {
-    copy_construct_at(m_data.as<array_type>(), s);
+    move_construct_at(m_data.as<array_type>(), s);
 }
 
-value::value(const map_type& s) : m_type(Map)
+value::value(map_type s) : m_type(Map)
 {
-    copy_construct_at(m_data.as<map_type>(), s);
+    move_construct_at(m_data.as<map_type>(), s);
 }
+
 
 value::~value()
 {
-    if(m_type != Invalid)
-    {
-        invoke_flagged<destruction>(*this, m_type);
-        m_type = Invalid;
-    }
+    invoke_flagged<destruction>(m_type, *this);
 }
+
+
+value& value::operator=(const bool x)
+{
+    copy_assign_inner(x);
+    return *this;
+}
+
+value& value::operator=(const int_type x)
+{
+    copy_assign_inner(x);
+    return *this;
+}
+
+value& value::operator=(const double x)
+{
+    copy_assign_inner(x);
+    return *this;
+}
+
+value& value::operator=(std::string x)
+{
+    move_assign_inner(x);
+    return *this;
+}
+
+value& value::operator=(array_type x)
+{
+    move_assign_inner(x);
+    return *this;
+}
+
+value& value::operator=(map_type x)
+{
+    move_assign_inner(x);
+    return *this;
+}
+
 
 bool value::operator==(const value& rhs) const
 {
@@ -211,9 +256,12 @@ bool value::operator==(const value& rhs) const
     {
         return false;
     }
-    bool res = false;
-    invoke_flagged<equality>(*this, m_type, rhs, res);
-    return res;
+    else
+    {
+        bool res = false;
+        invoke_flagged<equality>(m_type, *this, rhs, res);
+        return res;
+    }
 }
 } // namespace v2
 } // namespace anyrpc

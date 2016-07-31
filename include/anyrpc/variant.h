@@ -12,7 +12,6 @@ template <std::size_t Size>
 class stack_data
 {
 public:
-
     stack_data()
     {
         std::fill_n(m_data, Size, 0);
@@ -58,7 +57,7 @@ public:
         Map
     };
 
-    
+
     using int_type = std::int64_t;
     using map_type = std::unordered_map<std::string, value>;
     using array_type = std::vector<value>;
@@ -75,13 +74,26 @@ public:
     ~value();
 
     bool operator==(const value&) const;
+    bool operator!=(const value& rhs) const
+    {
+        return !(*this == rhs);
+    }
 
-    explicit value(const bool rhs);
-    explicit value(const int_type x);
-    explicit value(const double x);
-    explicit value(const std::string& s);
-    explicit value(const array_type& s);
-    explicit value(const map_type& s);
+    explicit value(bool);
+    explicit value(int_type);
+    explicit value(double);
+    explicit value(std::string);
+    explicit value(array_type);
+    explicit value(map_type);
+
+
+    value& operator=(bool);
+    value& operator=(int_type);
+    value& operator=(double);
+    value& operator=(std::string);
+    value& operator=(array_type);
+    value& operator=(map_type);
+
 
     bool is_valid() const
     {
@@ -92,15 +104,14 @@ public:
     const T& get() const;
 
 private:
-   
-    template<TypeFlag Flag>
-    struct flagged
-    {
-        enum {type_flag = Flag};
-    };
-    
+    template <TypeFlag Flag>
+    struct flagged;
+
     template <TypeFlag Flag>
     struct flag_traits;
+
+    template <TypeFlag Flag>
+    using flag_t = typename flag_traits<Flag>::value_type;
 
     template <typename Type>
     struct type_traits;
@@ -113,28 +124,31 @@ private:
         array_type m_array;
         map_type m_map;
     };
-    
-    struct flag_functor
-    {
-        flag_functor(value& this_ref) : m_this(this_ref) {}
-        value& m_this;
-    };
-    
-    template<TypeFlag Flag>
+
+    template <TypeFlag>
     struct copy_construction;
-    
-    template<TypeFlag Flag>
+
+    template <TypeFlag>
     struct move_construction;
-    
-    template<TypeFlag Flag>
-    struct move_assign;
-    
-    template<TypeFlag>
+
+    template <TypeFlag>
+    struct copy_assign_outer;
+
+    template <TypeFlag>
+    struct move_assign_outer;
+
+    template <typename T>
+    void copy_assign_inner(const T& x);
+
+    template <typename T>
+    void move_assign_inner(T&& x);
+
+    template <TypeFlag>
     struct destruction;
-    
-    template<TypeFlag>
+
+    template <TypeFlag>
     struct equality;
-    
+
     TypeFlag m_type;
     stack_data<sizeof(data_t)> m_data;
 };
@@ -172,6 +186,8 @@ struct value::flag_traits<value::Map>
 
 
 // clang-format off
+
+template <value::TypeFlag Flag> struct value::flagged{ enum { type_flag = Flag }; };
 
 template <> struct value::type_traits<bool> : flagged<value::Bool> {};
 template <> struct value::type_traits<value::int_type> : flagged<value::Int> {};
