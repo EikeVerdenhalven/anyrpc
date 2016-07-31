@@ -2,6 +2,9 @@
 
 #include <gtest/gtest.h>
 
+
+#define TEST_CHECK_THROW 1
+
 using namespace anyrpc;
 
 namespace v = anyrpc::v2;
@@ -12,66 +15,73 @@ void verify(const v::value& sut, bool& actual)
 {
     EXPECT_NO_THROW({ actual = sut.get<bool>(); });
 
+#ifdef TEST_CHECK_THROW
     EXPECT_THROW({ sut.get<v::value::int_type>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<std::string>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<double>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<v::value::map_type>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<v::value::array_type>(); }, std::runtime_error);
+#endif
 }
 
 void verify(const v::value& sut, v::value::int_type& actual)
 {
     EXPECT_NO_THROW({ actual = sut.get<v::value::int_type>(); });
-
+#ifdef TEST_CHECK_THROW
     EXPECT_THROW({ sut.get<bool>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<std::string>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<double>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<v::value::map_type>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<v::value::array_type>(); }, std::runtime_error);
+#endif
 }
 
 void verify(const v::value& sut, double& actual)
 {
     EXPECT_NO_THROW({ actual = sut.get<double>(); });
-
+#ifdef TEST_CHECK_THROW
     EXPECT_THROW({ sut.get<v::value::int_type>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<std::string>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<bool>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<v::value::map_type>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<v::value::array_type>(); }, std::runtime_error);
+#endif
 }
 
 void verify(const v::value& sut, std::string& actual)
 {
     EXPECT_NO_THROW({ actual = sut.get<std::string>(); });
-
+#ifdef TEST_CHECK_THROW
     EXPECT_THROW({ sut.get<v::value::int_type>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<bool>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<double>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<v::value::map_type>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<v::value::array_type>(); }, std::runtime_error);
+#endif
 }
 
 void verify(const v::value& sut, v::value::array_type& actual)
 {
     EXPECT_NO_THROW({ actual = sut.get<v::value::array_type>(); });
-
+#ifdef TEST_CHECK_THROW
     EXPECT_THROW({ sut.get<v::value::int_type>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<std::string>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<double>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<v::value::map_type>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<bool>(); }, std::runtime_error);
+#endif
 }
 
 void verify(const v::value& sut, v::value::map_type& actual)
 {
     EXPECT_NO_THROW({ actual = sut.get<v::value::map_type>(); });
-
+#ifdef TEST_CHECK_THROW
     EXPECT_THROW({ sut.get<v::value::int_type>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<std::string>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<double>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<v::value::array_type>(); }, std::runtime_error);
     EXPECT_THROW({ sut.get<bool>(); }, std::runtime_error);
+#endif
 }
 
 template <class T>
@@ -371,4 +381,51 @@ TYPED_TEST(variant_move_semantics, MoveAssignFromRaw)
     testhelper::verify(sut, actual);
 
     EXPECT_TRUE(actual == origin);
+}
+
+
+const std::vector<v::value> test_values = {
+    {v::value{}, v::value{true}, v::value{false}, v::value{2345ll}, v::value{-245ll}, v::value{2485.1245},
+     v::value{"test string in cross-assgnEND"},
+
+     v::value{v::value::array_type{{v::value{"substring test"}, v::value{false}, v::value{234ll}, v::value{9473.134}}}},
+
+     v::value{v::value::map_type{{{"key1______s______END", v::value{true}},
+                                  {"key2_____________________________END", v::value{3.141}},
+                                  {"k3", v::value{3445ll}}}}}
+
+    }};
+
+class variant_cross_assign : public ::testing::TestWithParam<std::tuple<v::value, v::value>>
+{
+};
+
+
+INSTANTIATE_TEST_CASE_P(variant_wrapped_types,
+                        variant_cross_assign,
+                        ::testing::Combine(::testing::ValuesIn(test_values), ::testing::ValuesIn(test_values)));
+
+
+TEST_P(variant_cross_assign, CopyAssign)
+{
+    const auto v1 = std::get<0>(GetParam());
+    const auto v2 = std::get<1>(GetParam());
+
+    v::value v1a{v1};
+    v::value v2a{v2};
+
+    v1a = v2a;
+
+    EXPECT_TRUE(v1a == v2a);
+    EXPECT_TRUE(v1a == v2);
+    EXPECT_TRUE(v2a == v2);
+}
+
+TEST(variant, TypeCrossAssign)
+{
+    v::value s1{testhelper::values<v::value::array_type>::v1()};
+    v::value s2{testhelper::values<std::string>::v1()};
+
+    s1 = s2;
+    EXPECT_TRUE(s1 == s2);
 }

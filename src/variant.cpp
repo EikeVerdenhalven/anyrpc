@@ -78,7 +78,7 @@ struct value::move_construction
     static void invoke(value& self, value&& rhs)
     {
         move_construct_at(self.m_data.as<flag_t<Flag>>(), std::move(*rhs.m_data.as<flag_t<Flag>>()));
-        rhs.m_type = Invalid;
+        invoke_flagged<destruction>(rhs.m_type, rhs);
     }
 };
 
@@ -97,7 +97,7 @@ struct value::move_assign_outer
     static void invoke(value& self, value&& rhs)
     {
         self.move_assign_inner(std::move(*rhs.m_data.as<flag_t<Flag>>()));
-        rhs.m_type = Invalid;
+        invoke_flagged<destruction>(rhs.m_type, rhs);
     }
 };
 
@@ -166,13 +166,19 @@ value::value(value&& rhs) : m_type(rhs.m_type)
 
 value& value::operator=(const value& rhs)
 {
-    invoke_flagged<copy_assign_outer>(rhs.m_type, *this, rhs);
+    if (this != &rhs)
+    {
+        invoke_flagged<copy_assign_outer>(rhs.m_type, *this, rhs);
+    }
     return *this;
 }
 
 value& value::operator=(value&& rhs)
 {
-    invoke_flagged<move_assign_outer>(rhs.m_type, *this, std::move(rhs));
+    if (this != &rhs)
+    {
+        invoke_flagged<move_assign_outer>(rhs.m_type, *this, std::move(rhs));
+    }
     return *this;
 }
 
@@ -256,12 +262,17 @@ bool value::operator==(const value& rhs) const
     {
         return false;
     }
-    else
+    else if (m_type != Invalid)
     {
         bool res = false;
         invoke_flagged<equality>(m_type, *this, rhs, res);
         return res;
     }
+    else
+    {
+        return true;
+    }
 }
+
 } // namespace v2
 } // namespace anyrpc
