@@ -15,25 +15,20 @@ class stack_data
 public:
     stack_data()
     {
-        std::fill_n(m_data, Size, 0);
     }
-
     stack_data(const stack_data&) = delete;
-
-    std::size_t size() const
-    {
-        return Size;
-    }
 
     template <class T>
     T* as()
     {
+        static_assert(sizeof(T) <= Size, "Requested type does not fit into struct");
         return reinterpret_cast<T*>(&m_data);
     }
 
     template <class T>
     const T* as() const
     {
+        static_assert(sizeof(T) <= Size, "Requested type does not fit into struct");
         return reinterpret_cast<const T*>(&m_data);
     }
 
@@ -130,7 +125,7 @@ public:
     struct visitation;
     
     template<class Visitor>
-    void visit(Visitor& visitor)
+    void visit(Visitor& visitor) const
     {
         detail::invoke_flagged<visitation>(m_type, *this, visitor);
     }
@@ -194,8 +189,8 @@ struct value::visitation
 {
     using arg_type = flag_t<Flag>;
     template <class Visitor>
-    static void invoke(value& rSelf, Visitor& visitor)
-    {        
+    static void invoke(const value& rSelf, Visitor& visitor)
+    {
         visitor(rSelf.get<arg_type>());
     }
 };

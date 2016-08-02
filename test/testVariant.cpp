@@ -11,6 +11,74 @@ namespace v = anyrpc::v2;
 
 namespace testhelper
 {
+struct test_printer
+{
+    test_printer(std::ostream& os) : m_stream(os)
+    {
+    }
+
+    void operator()(const bool& x)
+    {
+        m_stream << (x ? "true" : "false");
+    }
+
+    void operator()(const double& x)
+    {
+        m_stream << "double:" << x;
+    }
+
+    void operator()(const v::value::int_type& x)
+    {
+        m_stream << "int_type:" << x;
+    }
+    void operator()(const std::string& x)
+    {
+        m_stream << "string:" << x;
+    }
+
+    void operator()(const v::value::array_type& x)
+    {
+        m_stream << "array:";
+        if (x.empty())
+        {
+            m_stream << "[]";
+        }
+        else
+        {
+            x.front().visit(*this);
+
+            for (auto it = std::next(x.begin()); it != x.end(); ++it)
+            {
+                m_stream << ", ";
+                it->visit(*this);
+            }
+        }
+    }
+
+    void operator()(const v::value::map_type& x)
+    {
+        m_stream << "map:";
+        if (x.empty())
+        {
+            m_stream << "{}";
+        }
+        else
+        {
+            m_stream << x.begin()->first << ":";
+            x.begin()->second.visit(*this);
+
+            for (auto it = std::next(x.begin()); it != x.end(); ++it)
+            {
+                m_stream << ", ";
+                m_stream << it->first << ":";
+                it->second.visit(*this);
+            }
+        }
+    }
+
+    std::ostream& m_stream;
+};
+
 void verify(const v::value& sut, bool& actual)
 {
     EXPECT_NO_THROW({ actual = sut.get<bool>(); });
@@ -170,7 +238,23 @@ struct values<v::value::array_type>
             {v::value{20384ll}, v::value{false}, v::value{"Hello World           END"}, v::value{239485ll}}};
     }
 };
+} // namespace testhelper
+
+
+namespace anyrpc
+{
+namespace v2
+{
+
+std::ostream& operator<<(std::ostream& os, const value& v)
+{
+    testhelper::test_printer printer(os);
+    v.visit(printer);
+    return os;
 }
+}
+}
+
 
 using variant_types
     = ::testing::Types<bool, v::value::int_type, double, std::string, v::value::array_type, v::value::map_type>;
@@ -416,9 +500,9 @@ TEST_P(variant_cross_assign, CopyAssign)
 
     v1a = v2a;
 
-    EXPECT_TRUE(v1a == v2a);
-    EXPECT_TRUE(v1a == v2);
-    EXPECT_TRUE(v2a == v2);
+    EXPECT_EQ(v1a, v2a);
+    EXPECT_EQ(v1a, v2);
+    EXPECT_EQ(v2a, v2);
 }
 
 TEST(variant, TypeCrossAssign)
@@ -427,7 +511,7 @@ TEST(variant, TypeCrossAssign)
     v::value s2{testhelper::values<std::string>::v1()};
 
     s1 = s2;
-    EXPECT_TRUE(s1 == s2);
+    EXPECT_EQ(s1, s2);
 }
 
 
@@ -469,11 +553,10 @@ TEST(variant, Visitation)
 {
     const auto expected_value = testhelper::values<std::string>::v1();
     v::value v1{expected_value};
-    
+
     test_visitor visitor;
-    
+
     v1.visit(visitor);
-    
+
     EXPECT_EQ(visitor.m_count, 1);
 }
-
