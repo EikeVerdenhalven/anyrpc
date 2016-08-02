@@ -429,3 +429,15 @@ TEST(variant, TypeCrossAssign)
     s1 = s2;
     EXPECT_TRUE(s1 == s2);
 }
+
+
+TEST(variant, Visitation)
+{
+    const auto expected_value = testhelper::values<std::string>::v1();
+    v::value v1{expected_value};
+    
+//    v1.visit([&expected_value](const std::string& x){
+//        EXPECT_EQ(x, expected_value);
+//    });
+}
+

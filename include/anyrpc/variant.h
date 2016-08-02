@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
+
 namespace anyrpc
 {
 
@@ -43,26 +44,48 @@ private:
 
 namespace v2
 {
+
+namespace detail
+{
+using type_flag_t = enum { Invalid, Bool, Int, Float, String, Array, Map };
+
+template <template <v2::detail::type_flag_t> class Functor, class... Args>
+void invoke_flagged(const v2::detail::type_flag_t flag, Args&&... args)
+{
+    switch (flag)
+    {
+    case v2::detail::Bool:
+        Functor<v2::detail::Bool>::invoke(std::forward<Args>(args)...);
+        break;
+    case v2::detail::Int:
+        Functor<v2::detail::Int>::invoke(std::forward<Args>(args)...);
+        break;
+    case v2::detail::Float:
+        Functor<v2::detail::Float>::invoke(std::forward<Args>(args)...);
+        break;
+    case v2::detail::String:
+        Functor<v2::detail::String>::invoke(std::forward<Args>(args)...);
+        break;
+    case v2::detail::Array:
+        Functor<v2::detail::Array>::invoke(std::forward<Args>(args)...);
+        break;
+    case v2::detail::Map:
+        Functor<v2::detail::Map>::invoke(std::forward<Args>(args)...);
+        break;
+    default:
+        break;
+    }
+}
+} // namespace detail
+
 class value
 {
 public:
-    enum TypeFlag
-    {
-        Invalid,
-        Bool,
-        Int,
-        Float,
-        String,
-        Array,
-        Map
-    };
-
-
     using int_type = std::int64_t;
     using map_type = std::unordered_map<std::string, value>;
     using array_type = std::vector<value>;
 
-    value() : m_type(Invalid)
+    value() : m_type(detail::Invalid)
     {
     }
     value(const value&);
@@ -97,20 +120,20 @@ public:
 
     bool is_valid() const
     {
-        return m_type != Invalid;
+        return m_type != detail::Invalid;
     }
 
     template <class T>
     const T& get() const;
 
 private:
-    template <TypeFlag Flag>
+    template <detail::type_flag_t Flag>
     struct flagged;
 
-    template <TypeFlag Flag>
+    template <detail::type_flag_t Flag>
     struct flag_traits;
 
-    template <TypeFlag Flag>
+    template <detail::type_flag_t Flag>
     using flag_t = typename flag_traits<Flag>::value_type;
 
     template <typename Type>
@@ -125,16 +148,16 @@ private:
         map_type m_map;
     };
 
-    template <TypeFlag>
+    template <detail::type_flag_t>
     struct copy_construction;
 
-    template <TypeFlag>
+    template <detail::type_flag_t>
     struct move_construction;
 
-    template <TypeFlag>
+    template <detail::type_flag_t>
     struct copy_assign_outer;
 
-    template <TypeFlag>
+    template <detail::type_flag_t>
     struct move_assign_outer;
 
     template <typename T>
@@ -143,43 +166,43 @@ private:
     template <typename T>
     void move_assign_inner(T&& x);
 
-    template <TypeFlag>
+    template <detail::type_flag_t>
     struct destruction;
 
-    template <TypeFlag>
+    template <detail::type_flag_t>
     struct equality;
 
-    TypeFlag m_type;
+    detail::type_flag_t m_type;
     stack_data<sizeof(data_t)> m_data;
 };
 
 template <>
-struct value::flag_traits<value::Bool>
+struct value::flag_traits<detail::Bool>
 {
     using value_type = bool;
 };
 template <>
-struct value::flag_traits<value::Int>
+struct value::flag_traits<detail::Int>
 {
     using value_type = value::int_type;
 };
 template <>
-struct value::flag_traits<value::Float>
+struct value::flag_traits<detail::Float>
 {
     using value_type = double;
 };
 template <>
-struct value::flag_traits<value::String>
+struct value::flag_traits<detail::String>
 {
     using value_type = std::string;
 };
 template <>
-struct value::flag_traits<value::Array>
+struct value::flag_traits<detail::Array>
 {
     using value_type = value::array_type;
 };
 template <>
-struct value::flag_traits<value::Map>
+struct value::flag_traits<detail::Map>
 {
     using value_type = value::map_type;
 };
@@ -187,14 +210,14 @@ struct value::flag_traits<value::Map>
 
 // clang-format off
 
-template <value::TypeFlag Flag> struct value::flagged{ enum { type_flag = Flag }; };
+template <detail::type_flag_t Flag> struct value::flagged{ enum { type_flag = Flag }; };
 
-template <> struct value::type_traits<bool> : flagged<value::Bool> {};
-template <> struct value::type_traits<value::int_type> : flagged<value::Int> {};
-template <> struct value::type_traits<double> : flagged<value::Float> {};
-template <> struct value::type_traits<std::string> : flagged<value::String> {};
-template <> struct value::type_traits<value::array_type> : flagged<value::Array> {};
-template <> struct value::type_traits<value::map_type> : flagged<value::Map> {};
+template <> struct value::type_traits<bool> : flagged<detail::Bool> {};
+template <> struct value::type_traits<value::int_type> : flagged<detail::Int> {};
+template <> struct value::type_traits<double> : flagged<detail::Float> {};
+template <> struct value::type_traits<std::string> : flagged<detail::String> {};
+template <> struct value::type_traits<value::array_type> : flagged<detail::Array> {};
+template <> struct value::type_traits<value::map_type> : flagged<detail::Map> {};
 
 // clang-format on
 
