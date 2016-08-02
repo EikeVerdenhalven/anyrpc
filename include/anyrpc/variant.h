@@ -54,23 +54,23 @@ void invoke_flagged(const v2::detail::type_flag_t flag, Args&&... args)
 {
     switch (flag)
     {
-    case v2::detail::Bool:
-        Functor<v2::detail::Bool>::invoke(std::forward<Args>(args)...);
+    case Bool:
+        Functor<Bool>::invoke(std::forward<Args>(args)...);
         break;
-    case v2::detail::Int:
-        Functor<v2::detail::Int>::invoke(std::forward<Args>(args)...);
+    case Int:
+        Functor<Int>::invoke(std::forward<Args>(args)...);
         break;
-    case v2::detail::Float:
-        Functor<v2::detail::Float>::invoke(std::forward<Args>(args)...);
+    case Float:
+        Functor<Float>::invoke(std::forward<Args>(args)...);
         break;
-    case v2::detail::String:
-        Functor<v2::detail::String>::invoke(std::forward<Args>(args)...);
+    case String:
+        Functor<String>::invoke(std::forward<Args>(args)...);
         break;
-    case v2::detail::Array:
-        Functor<v2::detail::Array>::invoke(std::forward<Args>(args)...);
+    case Array:
+        Functor<Array>::invoke(std::forward<Args>(args)...);
         break;
-    case v2::detail::Map:
-        Functor<v2::detail::Map>::invoke(std::forward<Args>(args)...);
+    case Map:
+        Functor<Map>::invoke(std::forward<Args>(args)...);
         break;
     default:
         break;
