@@ -431,13 +431,49 @@ TEST(variant, TypeCrossAssign)
 }
 
 
+struct test_visitor
+{
+    test_visitor() : m_count(0)
+    {
+    }
+
+    void operator()(const bool& x)
+    {
+    }
+
+    void operator()(const double& x)
+    {
+    }
+
+    void operator()(const v::value::int_type& x)
+    {
+    }
+    void operator()(const std::string& x)
+    {
+        ++m_count;
+    }
+
+    void operator()(const v::value::array_type& x)
+    {
+    }
+
+    void operator()(const v::value::map_type& x)
+    {
+    }
+
+    size_t m_count;
+};
+
+
 TEST(variant, Visitation)
 {
     const auto expected_value = testhelper::values<std::string>::v1();
     v::value v1{expected_value};
     
-//    v1.visit([&expected_value](const std::string& x){
-//        EXPECT_EQ(x, expected_value);
-//    });
+    test_visitor visitor;
+    
+    v1.visit(visitor);
+    
+    EXPECT_EQ(visitor.m_count, 1);
 }
 

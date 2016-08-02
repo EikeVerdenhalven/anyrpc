@@ -126,6 +126,15 @@ public:
     template <class T>
     const T& get() const;
 
+    template<detail::type_flag_t Flag>
+    struct visitation;
+    
+    template<class Visitor>
+    void visit(Visitor& visitor)
+    {
+        detail::invoke_flagged<visitation>(m_type, *this, visitor);
+    }
+
 private:
     template <detail::type_flag_t Flag>
     struct flagged;
@@ -174,6 +183,21 @@ private:
 
     detail::type_flag_t m_type;
     stack_data<sizeof(data_t)> m_data;
+    
+};
+
+
+    
+
+template <detail::type_flag_t Flag>
+struct value::visitation
+{
+    using arg_type = flag_t<Flag>;
+    template <class Visitor>
+    static void invoke(value& rSelf, Visitor& visitor)
+    {        
+        visitor(rSelf.get<arg_type>());
+    }
 };
 
 template <>
