@@ -102,6 +102,13 @@ void value::assign_inner(T&& x)
         m_type = new_flag;
     }
 }
+    
+template <typename Int>
+value& value::assign_int(const Int x)
+{
+    assign_inner(static_cast<int_type>(x));
+    return *this;
+}
 
 
 //------------------------------------------------------------------------------
@@ -153,22 +160,14 @@ value::value(value&& rhs) : m_type(detail::Invalid)
 //
 // Note: type flag *must* be set after construction, in case construction throws
 
-value::value(const bool_type x) : value()
+value::value(const bool_type x) : m_type(detail::Bool)
 {
-    copy_construct_at(m_data.as<bool_type>(), x);
-    m_type = detail::Bool;
+    construct_at(m_data.as<bool_type>(), x);
 }
 
-value::value(const int_type x) : value()
+value::value(const float_type x) : m_type(detail::Float)
 {
-    copy_construct_at(m_data.as<int_type>(), x);
-    m_type = detail::Int;
-}
-
-value::value(const float_type x) : value()
-{
-    copy_construct_at(m_data.as<float_type>(), x);
-    m_type = detail::Float;
+    construct_at(m_data.as<float_type>(), x);
 }
 
 value::value(string_type s) : value()
@@ -187,6 +186,44 @@ value::value(map_type s) : value()
 {
     move_construct_at(m_data.as<map_type>(), s);
     m_type = detail::Map;
+}
+
+
+//------------------------------------------------------------------------------
+// integer conversion constructors
+//
+
+value::value(const short int x) : m_type(detail::Int)
+{
+    construct_at(m_data.as<int_type>(), static_cast<int_type>(x));
+}
+value::value(const unsigned short int x) : m_type(detail::Int)
+{
+    construct_at(m_data.as<int_type>(), static_cast<int_type>(x));
+}
+value::value(const int x) : m_type(detail::Int)
+{
+    construct_at(m_data.as<int_type>(), static_cast<int_type>(x));
+}
+value::value(const unsigned int x) : m_type(detail::Int)
+{
+    construct_at(m_data.as<int_type>(), static_cast<int_type>(x));
+}
+value::value(const long int x) : m_type(detail::Int)
+{
+    construct_at(m_data.as<int_type>(), static_cast<int_type>(x));
+}
+value::value(const unsigned long int x) : m_type(detail::Int)
+{
+    construct_at(m_data.as<int_type>(), static_cast<int_type>(x));
+}
+value::value(const long long int x) : m_type(detail::Int)
+{
+    construct_at(m_data.as<int_type>(), static_cast<int_type>(x));
+}
+value::value(const unsigned long long int x) : m_type(detail::Int)
+{
+    construct_at(m_data.as<int_type>(), static_cast<int_type>(x));
 }
 
 
@@ -222,12 +259,6 @@ value& value::operator=(const bool_type x)
     return *this;
 }
 
-value& value::operator=(const int_type x)
-{
-    assign_inner(x);
-    return *this;
-}
-
 value& value::operator=(const float_type x)
 {
     assign_inner(x);
@@ -252,6 +283,38 @@ value& value::operator=(map_type x)
     return *this;
 }
 
+value& value::operator=(const short x)
+{
+    return assign_int(x);
+}
+value& value::operator=(const unsigned short x)
+{
+    return assign_int(x);
+}
+value& value::operator=(const int x)
+{
+    return assign_int(x);
+}
+value& value::operator=(const unsigned x)
+{
+    return assign_int(x);
+}
+value& value::operator=(const long x)
+{
+    return assign_int(x);
+}
+value& value::operator=(const unsigned long x)
+{
+    return assign_int(x);
+}
+value& value::operator=(const long long int x)
+{
+    return assign_int(x);
+}
+value& value::operator=(const unsigned long long int x)
+{
+    return assign_int(x);
+}
 
 //------------------------------------------------------------------------------
 // destructor

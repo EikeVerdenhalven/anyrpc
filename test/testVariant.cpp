@@ -514,6 +514,47 @@ TEST(variant, TypeCrossAssign)
     EXPECT_EQ(s1, s2);
 }
 
+template <class T>
+class variant_integers : public ::testing::Test
+{
+public:
+    using value_type = T;
+
+    const T expected_value = 45463;
+};
+
+using integer_types = ::testing::Types<short,
+                                       unsigned short,
+                                       int,
+                                       unsigned,
+                                       long,
+                                       unsigned long,
+                                       long long,
+                                       unsigned long long>;
+
+TYPED_TEST_CASE(variant_integers, integer_types);
+
+TYPED_TEST(variant_integers, ConstructWithInteger)
+{
+    const v::value sut{TestFixture::expected_value};
+
+    EXPECT_TRUE(sut.is_valid());
+    EXPECT_EQ(static_cast<v::value::int_type>(TestFixture::expected_value),
+              sut.get<v::value::int_type>());
+}
+
+TYPED_TEST(variant_integers, AssignInteger)
+{
+    v::value sut;
+
+    EXPECT_FALSE(sut.is_valid());
+
+    sut = TestFixture::expected_value;
+
+    EXPECT_EQ(static_cast<v::value::int_type>(TestFixture::expected_value),
+              sut.get<v::value::int_type>());
+}
+
 
 struct test_visitor
 {

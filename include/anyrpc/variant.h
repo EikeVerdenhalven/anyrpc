@@ -67,12 +67,21 @@ public:
     value(value&&);
 
     explicit value(bool_type);
-    explicit value(int_type);
     explicit value(float_type);
     explicit value(string_type);
     explicit value(array_type);
     explicit value(map_type);
 
+    explicit value(const short int x);
+    explicit value(const unsigned short int x);
+    explicit value(const int x);
+    explicit value(const unsigned int x);
+    explicit value(const long int x);
+    explicit value(const unsigned long int x);
+    explicit value(const long long int x);
+    explicit value(const unsigned long long int x);
+    
+    
     ~value();
 
 
@@ -81,14 +90,20 @@ public:
 
 
     value& operator=(bool_type);
-    value& operator=(int_type);
     value& operator=(float_type);
     value& operator=(string_type);
     value& operator=(array_type);
     value& operator=(map_type);
-
-    value& operator=(int x) { return *this = static_cast<int_type>(x); }
-    value& operator=(unsigned x) { return *this = static_cast<int_type>(x); }
+    
+    
+    value& operator=(const short int x);
+    value& operator=(const unsigned short int x);
+    value& operator=(const int x);
+    value& operator=(const unsigned int x);
+    value& operator=(const long int x);
+    value& operator=(const unsigned long int x);
+    value& operator=(const long long int x);
+    value& operator=(const unsigned long long int x);
     
     
     bool operator==(const value&) const;
@@ -140,7 +155,10 @@ private:
 
     template <typename T>
     void assign_inner(T&& x);
-
+    
+    template <typename Int>
+    value& assign_int(const Int x);
+    
     template <typename T>
     struct destruction;
 
