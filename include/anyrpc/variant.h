@@ -87,6 +87,9 @@ public:
     value& operator=(array_type);
     value& operator=(map_type);
 
+    value& operator=(int x) { return *this = static_cast<int_type>(x); }
+    value& operator=(unsigned x) { return *this = static_cast<int_type>(x); }
+    
     
     bool operator==(const value&) const;
     bool operator!=(const value& rhs) const { return !(*this == rhs); }

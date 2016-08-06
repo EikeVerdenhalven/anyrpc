@@ -143,7 +143,8 @@ value::value(const value& rhs) : m_type(detail::Invalid)
 
 value::value(value&& rhs) : m_type(detail::Invalid)
 {
-    detail::invoke_flagged<move_construction>(rhs.m_type, *this, std::move(rhs));
+    detail::invoke_flagged<move_construction>(rhs.m_type, *this,
+                                              std::move(rhs));
 }
 
 
