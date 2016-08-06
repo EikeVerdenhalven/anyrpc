@@ -45,6 +45,7 @@ struct value::copy_construction
     static void invoke(value& self, const value& rhs)
     {
         copy_construct_at(self.m_data.as<T>(), *rhs.m_data.as<T>());
+        self.m_type = type_traits<T>::type_flag;
     }
 };
 
@@ -54,6 +55,7 @@ struct value::move_construction
     static void invoke(value& self, value&& rhs)
     {
         move_construct_at(self.m_data.as<T>(), std::move(*rhs.m_data.as<T>()));
+        self.m_type = type_traits<T>::type_flag;
         detail::invoke_flagged<destruction>(rhs.m_type, rhs);
     }
 };
@@ -66,7 +68,7 @@ struct value::copy_assign_outer
 {
     static void invoke(value& self, const value& rhs)
     {
-        self.copy_assign_inner(*rhs.m_data.as<T>());
+        self.assign_inner(*rhs.m_data.as<T>());
     }
 };
 
@@ -75,7 +77,7 @@ struct value::move_assign_outer
 {
     static void invoke(value& self, value&& rhs)
     {
-        self.move_assign_inner(std::move(*rhs.m_data.as<T>()));
+        self.assign_inner(std::move(*rhs.m_data.as<T>()));
         detail::invoke_flagged<destruction>(rhs.m_type, rhs);
     }
 };
@@ -85,34 +87,19 @@ struct value::move_assign_outer
 // inner assignment
 
 template <typename T>
-void value::copy_assign_inner(const T& x)
+void value::assign_inner(T&& x)
 {
     using rhs_type = typename std::decay<T>::type;
     const auto new_flag = type_traits<rhs_type>::type_flag;
     if (m_type == new_flag)
     {
-        *m_data.as<rhs_type>() = x;
+        *m_data.as<rhs_type>() = std::forward<T>(x);
     }
     else
     {
         destruct(*this);
-        construct_at(this, x);
-    }
-}
-
-template <typename T>
-void value::move_assign_inner(T&& x)
-{
-    using rhs_type = typename std::decay<T>::type;
-    const auto new_flag = type_traits<rhs_type>::type_flag;
-    if (m_type == new_flag)
-    {
-        *m_data.as<rhs_type>() = std::move(x);
-    }
-    else
-    {
-        destruct(*this);
-        construct_at(this, std::move(x));
+        construct_at(this, std::forward<T>(x));
+        m_type = new_flag;
     }
 }
 
@@ -149,48 +136,56 @@ struct value::equality
 //------------------------------------------------------------------------------
 // outer constructors
 
-value::value(const value& rhs) : m_type(rhs.m_type)
+value::value(const value& rhs) : m_type(detail::Invalid)
 {
-    detail::invoke_flagged<copy_construction>(m_type, *this, rhs);
+    detail::invoke_flagged<copy_construction>(rhs.m_type, *this, rhs);
 }
 
-value::value(value&& rhs) : m_type(rhs.m_type)
+value::value(value&& rhs) : m_type(detail::Invalid)
 {
-    detail::invoke_flagged<move_construction>(m_type, *this, std::move(rhs));
+    detail::invoke_flagged<move_construction>(rhs.m_type, *this, std::move(rhs));
 }
 
 
 //------------------------------------------------------------------------------
 // conversion constructors
+//
+// Note: type flag *must* be set after construction, in case construction throws
 
-value::value(const bool_type x) : m_type(detail::Bool)
+value::value(const bool_type x) : value()
 {
     copy_construct_at(m_data.as<bool_type>(), x);
+    m_type = detail::Bool;
 }
 
-value::value(const int_type x) : m_type(detail::Int)
+value::value(const int_type x) : value()
 {
     copy_construct_at(m_data.as<int_type>(), x);
+    m_type = detail::Int;
 }
 
-value::value(const float_type x) : m_type(detail::Float)
+value::value(const float_type x) : value()
 {
     copy_construct_at(m_data.as<float_type>(), x);
+    m_type = detail::Float;
 }
 
-value::value(string_type s) : m_type(detail::String)
+value::value(string_type s) : value()
 {
     move_construct_at(m_data.as<string_type>(), s);
+    m_type = detail::String;
 }
 
-value::value(array_type s) : m_type(detail::Array)
+value::value(array_type s) : value()
 {
     move_construct_at(m_data.as<array_type>(), s);
+    m_type = detail::Array;
 }
 
-value::value(map_type s) : m_type(detail::Map)
+value::value(map_type s) : value()
 {
     move_construct_at(m_data.as<map_type>(), s);
+    m_type = detail::Map;
 }
 
 
@@ -222,37 +217,37 @@ value& value::operator=(value&& rhs)
 
 value& value::operator=(const bool_type x)
 {
-    copy_assign_inner(x);
+    assign_inner(x);
     return *this;
 }
 
 value& value::operator=(const int_type x)
 {
-    copy_assign_inner(x);
+    assign_inner(x);
     return *this;
 }
 
 value& value::operator=(const float_type x)
 {
-    copy_assign_inner(x);
+    assign_inner(x);
     return *this;
 }
 
 value& value::operator=(string_type x)
 {
-    move_assign_inner(x);
+    assign_inner(x);
     return *this;
 }
 
 value& value::operator=(array_type x)
 {
-    move_assign_inner(x);
+    assign_inner(x);
     return *this;
 }
 
 value& value::operator=(map_type x)
 {
-    move_assign_inner(x);
+    assign_inner(x);
     return *this;
 }
 

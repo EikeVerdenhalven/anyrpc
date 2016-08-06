@@ -136,10 +136,7 @@ private:
     struct move_assign_outer;
 
     template <typename T>
-    void copy_assign_inner(const T& x);
-
-    template <typename T>
-    void move_assign_inner(T&& x);
+    void assign_inner(T&& x);
 
     template <typename T>
     struct destruction;
@@ -163,7 +160,11 @@ private:
 
 // clang-format off
 //
-template <detail::type_flag_t Flag> struct value::flagged{ enum { type_flag = Flag }; };
+template <detail::type_flag_t Flag>
+struct value::flagged
+{
+    static constexpr detail::type_flag_t type_flag = Flag;
+};
 
 template <> struct value::type_traits<value::bool_type>   : flagged<detail::Bool>   {};
 template <> struct value::type_traits<value::int_type>    : flagged<detail::Int>    {};
