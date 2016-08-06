@@ -25,70 +25,64 @@ void copy_construct_at(typename std::decay<T>::type* ptr, const T& x)
 template <class T>
 void move_construct_at(typename std::decay<T>::type* ptr, T&& x)
 {
-    new (ptr) typename std::decay<T>::type(std::forward<T>(x));
+    new (ptr) typename std::decay<T>::type(std::move(x));
 }
 } // anonymous namespace
 
+
+//------------------------------------------------------------------------------
+
 namespace v2
 {
+//------------------------------------------------------------------------------
+// value class type-dependent operations
+//------------------------------------------------------------------------------
+// construction
 
-template <detail::type_flag_t Flag>
+template <typename T>
 struct value::copy_construction
 {
     static void invoke(value& self, const value& rhs)
     {
-        copy_construct_at(self.m_data.as<flag_t<Flag>>(), rhs.get<flag_t<Flag>>());
+        copy_construct_at(self.m_data.as<T>(), *rhs.m_data.as<T>());
     }
 };
 
-template <detail::type_flag_t Flag>
+template <typename T>
 struct value::move_construction
 {
     static void invoke(value& self, value&& rhs)
     {
-        move_construct_at(self.m_data.as<flag_t<Flag>>(), std::move(*rhs.m_data.as<flag_t<Flag>>()));
+        move_construct_at(self.m_data.as<T>(), std::move(*rhs.m_data.as<T>()));
         detail::invoke_flagged<destruction>(rhs.m_type, rhs);
     }
 };
 
-template <detail::type_flag_t Flag>
+//------------------------------------------------------------------------------
+// outer assignment
+
+template <typename T>
 struct value::copy_assign_outer
 {
     static void invoke(value& self, const value& rhs)
     {
-        self.copy_assign_inner(rhs.get<flag_t<Flag>>());
+        self.copy_assign_inner(*rhs.m_data.as<T>());
     }
 };
 
-template <detail::type_flag_t Flag>
+template <typename T>
 struct value::move_assign_outer
 {
     static void invoke(value& self, value&& rhs)
     {
-        self.move_assign_inner(std::move(*rhs.m_data.as<flag_t<Flag>>()));
+        self.move_assign_inner(std::move(*rhs.m_data.as<T>()));
         detail::invoke_flagged<destruction>(rhs.m_type, rhs);
     }
 };
 
 
-template <detail::type_flag_t Flag>
-struct value::destruction
-{
-    static void invoke(value& self)
-    {
-        destruct(*self.m_data.as<flag_t<Flag>>());
-        self.m_type = detail::Invalid;
-    }
-};
-
-template <detail::type_flag_t Flag>
-struct value::equality
-{
-    static void invoke(const value& self, const value& rhs, bool& res)
-    {
-        res = self.get<flag_t<Flag>>() == rhs.get<flag_t<Flag>>();
-    }
-};
+//------------------------------------------------------------------------------
+// inner assignment
 
 template <typename T>
 void value::copy_assign_inner(const T& x)
@@ -123,6 +117,38 @@ void value::move_assign_inner(T&& x)
 }
 
 
+//------------------------------------------------------------------------------
+// destruction
+
+template <typename T>
+struct value::destruction
+{
+    static void invoke(value& self)
+    {
+        destruct(*self.m_data.as<T>());
+        self.m_type = detail::Invalid;
+    }
+};
+
+
+//------------------------------------------------------------------------------
+// equality
+
+template <typename T>
+struct value::equality
+{
+    static void invoke(const value& self, const value& rhs, bool& res)
+    {
+        res = *self.m_data.as<T>() == *rhs.m_data.as<T>();
+    }
+};
+
+
+//------------------------------------------------------------------------------
+// value class implementation
+//------------------------------------------------------------------------------
+// outer constructors
+
 value::value(const value& rhs) : m_type(rhs.m_type)
 {
     detail::invoke_flagged<copy_construction>(m_type, *this, rhs);
@@ -132,6 +158,44 @@ value::value(value&& rhs) : m_type(rhs.m_type)
 {
     detail::invoke_flagged<move_construction>(m_type, *this, std::move(rhs));
 }
+
+
+//------------------------------------------------------------------------------
+// conversion constructors
+
+value::value(const bool_type x) : m_type(detail::Bool)
+{
+    copy_construct_at(m_data.as<bool_type>(), x);
+}
+
+value::value(const int_type x) : m_type(detail::Int)
+{
+    copy_construct_at(m_data.as<int_type>(), x);
+}
+
+value::value(const float_type x) : m_type(detail::Float)
+{
+    copy_construct_at(m_data.as<float_type>(), x);
+}
+
+value::value(string_type s) : m_type(detail::String)
+{
+    move_construct_at(m_data.as<string_type>(), s);
+}
+
+value::value(array_type s) : m_type(detail::Array)
+{
+    move_construct_at(m_data.as<array_type>(), s);
+}
+
+value::value(map_type s) : m_type(detail::Map)
+{
+    move_construct_at(m_data.as<map_type>(), s);
+}
+
+
+//------------------------------------------------------------------------------
+// outer assignment
 
 value& value::operator=(const value& rhs)
 {
@@ -146,49 +210,17 @@ value& value::operator=(value&& rhs)
 {
     if (this != &rhs)
     {
-        detail::invoke_flagged<move_assign_outer>(rhs.m_type, *this, std::move(rhs));
+        detail::invoke_flagged<move_assign_outer>(rhs.m_type, *this,
+                                                  std::move(rhs));
     }
     return *this;
 }
 
-value::value(const bool x) : m_type(detail::Bool)
-{
-    copy_construct_at(m_data.as<bool>(), x);
-}
 
-value::value(const int_type x) : m_type(detail::Int)
-{
-    copy_construct_at(m_data.as<int_type>(), x);
-}
+//------------------------------------------------------------------------------
+// conversion assignment
 
-value::value(const double x) : m_type(detail::Float)
-{
-    copy_construct_at(m_data.as<double>(), x);
-}
-
-value::value(std::string s) : m_type(detail::String)
-{
-    move_construct_at(m_data.as<std::string>(), s);
-}
-
-value::value(array_type s) : m_type(detail::Array)
-{
-    move_construct_at(m_data.as<array_type>(), s);
-}
-
-value::value(map_type s) : m_type(detail::Map)
-{
-    move_construct_at(m_data.as<map_type>(), s);
-}
-
-
-value::~value()
-{
-    detail::invoke_flagged<destruction>(m_type, *this);
-}
-
-
-value& value::operator=(const bool x)
+value& value::operator=(const bool_type x)
 {
     copy_assign_inner(x);
     return *this;
@@ -200,13 +232,13 @@ value& value::operator=(const int_type x)
     return *this;
 }
 
-value& value::operator=(const double x)
+value& value::operator=(const float_type x)
 {
     copy_assign_inner(x);
     return *this;
 }
 
-value& value::operator=(std::string x)
+value& value::operator=(string_type x)
 {
     move_assign_inner(x);
     return *this;
@@ -224,6 +256,18 @@ value& value::operator=(map_type x)
     return *this;
 }
 
+
+//------------------------------------------------------------------------------
+// destructor
+
+value::~value()
+{
+    detail::invoke_flagged<destruction>(m_type, *this);
+}
+
+
+//------------------------------------------------------------------------------
+// equality
 
 bool value::operator==(const value& rhs) const
 {
